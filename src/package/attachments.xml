@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<attachments>
+    <attachment>
+        <name>jdk.distro</name>
+        <groupId>io.trade-mate</groupId>
+        <artifactId>openjdk</artifactId>
+        <classifier>${jdk.classifier}</classifier>
+        <type>${jdk.extension}</type>
+        <version>17.0.1</version>
+    </attachment>
+</attachments>

@@ -1,0 +1,6 @@
+-XX:ErrorFile=${app.home}${file.separator}log${file.separator}hs_err.${time.fileName}.%p.log
+-XX:HeapDumpPath=${app.home}${file.separator}log${file.separator}java.${time.fileName}.hprof
+-XX:+HeapDumpOnOutOfMemoryError
+--add-exports=jdk.management/com.sun.management.internal=ALL-UNNAMED
+${systemProperties} -cp ${classpath} codes.writeonce.utils.Main
+${arguments}

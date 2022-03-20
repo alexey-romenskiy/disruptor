@@ -7,10 +7,12 @@ import org.overviewproject.mime_types.MimeTypeDetector;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -20,31 +22,48 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.zip.GZIPOutputStream;
 
+import static java.nio.channels.FileChannel.MapMode.READ_ONLY;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.file.StandardOpenOption.CREATE_NEW;
+import static java.nio.file.StandardOpenOption.READ;
+import static java.nio.file.StandardOpenOption.WRITE;
 
 public final class TarReader {
 
     private static final String DIGEST_ALGORITHM = "SHA-256";
 
     @Nonnull
-    public static TarArch readTar(@Nonnull Path path) throws NoSuchAlgorithmException, IOException {
+    public static TarArch readTar(
+            @Nonnull Path path,
+            @Nonnull Path uncompressedDataPath,
+            @Nonnull Path compressedDataPath
+    ) throws NoSuchAlgorithmException, IOException {
 
         try (var fileInputStream = Files.newInputStream(path)) {
-            return readTar(fileInputStream);
+            return readTar(fileInputStream, uncompressedDataPath, compressedDataPath);
         }
     }
 
     @Nonnull
-    public static TarArch readTar(@Nonnull InputStream fileInputStream) throws NoSuchAlgorithmException, IOException {
+    public static TarArch readTar(
+            @Nonnull InputStream fileInputStream,
+            @Nonnull Path uncompressedDataPath,
+            @Nonnull Path compressedDataPath
+    ) throws NoSuchAlgorithmException, IOException {
 
         final var now = Instant.now();
         final var buffer = new byte[0x1000000];
-        final var byteArrayOutputStream = new ByteArrayOutputStream();
-        final var byteArrayOutputStream2 = new ByteArrayOutputStream();
         final var entries = new HashMap<String, TarEntry>();
         final var digest = MessageDigest.getInstance(DIGEST_ALGORITHM);
 
-        try (var xzInputStream = new XZCompressorInputStream(fileInputStream);
+        Files.deleteIfExists(uncompressedDataPath);
+        Files.deleteIfExists(compressedDataPath);
+
+        try (var uncompressedChannel = FileChannel.open(uncompressedDataPath, READ, WRITE, CREATE_NEW);
+             var compressedChannel = FileChannel.open(compressedDataPath, READ, WRITE, CREATE_NEW);
+             var uncompressedOutputStream = Channels.newOutputStream(uncompressedChannel);
+             var compressedOutputStream = Channels.newOutputStream(compressedChannel);
+             var xzInputStream = new XZCompressorInputStream(fileInputStream);
              var tarInputStream = new TarArchiveInputStream(xzInputStream, UTF_8.name())) {
 
             while (true) {
@@ -62,10 +81,10 @@ public final class TarReader {
                     if (lastModifiedDate.isAfter(now)) {
                         throw new IllegalArgumentException();
                     }
-                    final var offset = byteArrayOutputStream.size();
-                    final var archOffset = byteArrayOutputStream2.size();
+                    final var offset = (int) uncompressedChannel.size();
+                    final var archOffset = (int) compressedChannel.size();
                     digest.reset();
-                    try (var gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream2)) {
+                    try (var gzipOutputStream = new GZIPOutputStream(new NoCloseOutputStream(compressedOutputStream))) {
                         var remained = size;
                         while (remained != 0) {
                             final var read = tarInputStream.read(buffer, 0, (int) Math.min(buffer.length, remained));
@@ -73,12 +92,12 @@ public final class TarReader {
                                 throw new IllegalArgumentException();
                             }
                             digest.update(buffer, 0, read);
-                            byteArrayOutputStream.write(buffer, 0, read);
+                            uncompressedOutputStream.write(buffer, 0, read);
                             remained -= read;
                             gzipOutputStream.write(buffer, 0, read);
                         }
                     }
-                    final var archSize = byteArrayOutputStream2.size() - archOffset;
+                    final var archSize = (int) compressedChannel.size() - archOffset;
                     entries.put("/" + name, new TarEntry(
                             offset,
                             (int) size,
@@ -90,16 +109,14 @@ public final class TarReader {
                 }
             }
 
-            final var byteBuffer = ByteBuffer.allocateDirect(byteArrayOutputStream.size());
-            final var byteBuffer2 = ByteBuffer.allocateDirect(byteArrayOutputStream2.size());
-            byteBuffer.put(0, byteArrayOutputStream.toByteArray());
-            byteBuffer2.put(0, byteArrayOutputStream2.toByteArray());
+            final var uncompressedDataBuffer = uncompressedChannel.map(READ_ONLY, 0, uncompressedChannel.size());
+            final var compressedDataBuffer = compressedChannel.map(READ_ONLY, 0, compressedChannel.size());
 
             final var mimeTypeDetector = new MimeTypeDetector();
             entries.forEach((k, v) -> {
                 try {
                     final var bytes = new byte[v.size];
-                    byteBuffer.get(v.offset, bytes);
+                    uncompressedDataBuffer.get(v.offset, bytes);
                     final var mimeType = mimeTypeDetector.detectMimeType(k, () -> bytes);
                     v.setMimeType(addCharset(mimeType));
                 } catch (GetBytesException e) {
@@ -107,7 +124,7 @@ public final class TarReader {
                 }
             });
 
-            return new TarArch(entries, byteBuffer, byteBuffer2);
+            return new TarArch(entries, uncompressedDataBuffer, compressedDataBuffer);
         }
     }
 
@@ -175,6 +192,41 @@ public final class TarReader {
 
         private void setMimeType(@Nullable String mimeType) {
             this.mimeType = mimeType;
+        }
+    }
+
+    private static final class NoCloseOutputStream extends OutputStream {
+
+        @Nonnull
+        private final OutputStream out;
+
+        public NoCloseOutputStream(@Nonnull OutputStream out) {
+            this.out = out;
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+            out.write(b);
+        }
+
+        @Override
+        public void flush() throws IOException {
+            out.flush();
+        }
+
+        @Override
+        public void write(@Nonnull byte[] b, int off, int len) throws IOException {
+            out.write(b, off, len);
+        }
+
+        @Override
+        public void write(@Nonnull byte[] b) throws IOException {
+            out.write(b);
+        }
+
+        @Override
+        public void close() throws IOException {
+            out.flush();
         }
     }
 

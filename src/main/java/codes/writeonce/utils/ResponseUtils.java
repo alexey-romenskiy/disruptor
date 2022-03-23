@@ -146,6 +146,7 @@ public final class ResponseUtils {
         headers.set(CACHE_CONTROL, "max-age=0, no-cache, no-store, must-revalidate");
         headers.set(PRAGMA, "no-cache");
         headers.set(EXPIRES, "Wed, 11 Jan 1984 05:00:00 GMT");
+        HttpUtil.setContentLength(response, 0);
         send(context, request, forceClose, response);
     }
 

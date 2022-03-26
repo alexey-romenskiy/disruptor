@@ -20,17 +20,17 @@ public class TailHandler extends ChannelInboundHandlerAdapter {
             if (throwable instanceof final SocketException e) {
                 final var message = e.getMessage();
                 if ("Connection reset".equals(message)) {
-                    logger.info("Unhandled exception: {}", message);
+                    logger.info("Unhandled exception in the Netty pipeline: {}", message);
                     return;
                 }
             } else if (throwable instanceof final DecoderException e) {
                 final var cause = e.getCause();
                 if (cause instanceof SSLHandshakeException) {
-                    logger.info("Unhandled exception: {}", e.getMessage());
+                    logger.info("Unhandled exception in the Netty pipeline: {}", e.getMessage());
                     return;
                 }
             }
-            logger.error("Unhandled exception", throwable);
+            logger.info("Unhandled exception in the Netty pipeline", throwable);
         } finally {
             ReferenceCountUtil.release(throwable);
             ctx.close();

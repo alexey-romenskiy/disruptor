@@ -15,6 +15,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import javax.annotation.Nonnull;
 import java.util.ArrayList;
@@ -22,6 +23,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static io.netty.buffer.Unpooled.EMPTY_BUFFER;
 import static io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST;
@@ -35,10 +37,14 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
 
     protected static final Logger LOGGER = LoggerFactory.getLogger(CustomHttpServerHandler.class);
 
+    private static final AtomicLong REQUEST_SEQUENCE = new AtomicLong();
+
     @Nonnull
     private final Mapping mapping;
 
     private ChannelHandlerContext context;
+
+    private long requestId;
 
     private HttpRequest request;
 
@@ -62,10 +68,20 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
     @Override
     protected void channelRead0(@Nonnull ChannelHandlerContext ctx, @Nonnull Object msg) {
 
+        try {
+            MDC.put("rs", String.valueOf(requestId));
+            doChannelRead0(ctx, msg);
+        } finally {
+            MDC.remove("rs");
+        }
+    }
+
+    private void doChannelRead0(@Nonnull ChannelHandlerContext ctx, @Nonnull Object msg) {
+
         if (msg instanceof final DecoderResultProvider drp) {
             final var result = drp.decoderResult();
             if (!result.isSuccess()) {
-                LOGGER.error("Decoder Failure", result.cause());
+                LOGGER.info("Decoder Failure", result.cause());
                 sendError(BAD_REQUEST, "MALFORMED_REQUEST", "Request decoder Failure");
                 return;
             }
@@ -73,7 +89,19 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
 
         if (msg instanceof final HttpRequest r) {
 
+            requestId = REQUEST_SEQUENCE.incrementAndGet();
+            MDC.put("rs", String.valueOf(requestId));
+
             request = r;
+
+            LOGGER.info(
+                    "Received incoming request {} {} version={} remoteAddress={} headers={}",
+                    r.method().name(),
+                    r.uri(),
+                    r.protocolVersion().text(),
+                    context.channel().remoteAddress(),
+                    r.headers()
+            );
 
             queryStringDecoder = new QueryStringDecoder(r.uri(), UTF_8);
 
@@ -87,7 +115,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
             try {
                 methods = mapping.handle(r, queryStringDecoder, cookies);
             } catch (NettyRequestException e) {
-                LOGGER.error("Failed to process request", e);
+                LOGGER.info("Failed to process request", e);
                 sendError(e.getHttpResponseStatus(), "MALFORMED_REQUEST", e.getMessage());
                 return;
             } catch (Exception e) {
@@ -97,7 +125,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
             }
 
             if (methods == null) {
-                sendError(NOT_FOUND, "NOT_FOUND", "No resource at this URI");// TODO user-friendly error pages
+                sendError(NOT_FOUND, "NOT_FOUND", "No resource at this URI");
                 return;
             }
 
@@ -119,7 +147,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
                 requestHandler = factory.handle(context, r, queryStringDecoder, cookies);
                 bodyHandler = requestHandler.getBodyHandler();
             } catch (NettyRequestException e) {
-                LOGGER.error("Failed to process request", e);
+                LOGGER.info("Failed to process request", e);
                 sendError(e.getHttpResponseStatus(), "MALFORMED_REQUEST", e.getMessage());
                 return;
             } catch (Exception e) {
@@ -141,7 +169,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
                 if (msg instanceof final LastHttpContent trailer) {
 
                     LOGGER.info(
-                            "Incoming request {} {} version={} remoteAddress={} headers={} trailers={}",
+                            "Full incoming request {} {} version={} remoteAddress={} headers={} trailers={}",
                             request.method().name(),
                             request.uri(),
                             request.protocolVersion().text(),
@@ -158,7 +186,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
                     cleanup();
                 }
             } catch (NettyRequestException e) {
-                LOGGER.error("Failed to process request", e);
+                LOGGER.info("Failed to process request", e);
                 sendError(e.getHttpResponseStatus(), "MALFORMED_REQUEST", e.getMessage());
             } catch (Exception e) {
                 LOGGER.error("Failed to process request", e);
@@ -178,6 +206,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
 
     private void cleanup() {
 
+        requestId = 0;
         request = null;
         queryStringDecoder = null;
         cookies = null;

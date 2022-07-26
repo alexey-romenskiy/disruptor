@@ -1,5 +1,6 @@
 package codes.writeonce.disruptor;
 
+import codes.writeonce.concurrency.WaitableHost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,6 +18,8 @@ public class Disruptor implements AutoCloseable {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final ArrayList<AtomicReference<WaitClient>> waitLists = new ArrayList<>();
+
+    private final ArrayList<WaitableHost> waitableHosts = new ArrayList<>();
 
     @Nonnull
     private final ArrayList<WorkerInfo> workers = new ArrayList<>();
@@ -49,6 +52,13 @@ public class Disruptor implements AutoCloseable {
             throw new IllegalStateException();
         }
         waitLists.add(waitListHead);
+    }
+
+    public void addWaitableHost(@Nonnull WaitableHost waitableHost) {
+        if (starting.get()) {
+            throw new IllegalStateException();
+        }
+        waitableHosts.add(waitableHost);
     }
 
     @Nonnull
@@ -162,6 +172,10 @@ public class Disruptor implements AutoCloseable {
 
         for (final var waitList : waitLists) {
             WaitClient.wakeupAll(waitList);
+        }
+
+        for (final var waitableHost : waitableHosts) {
+            waitableHost.wakeup();
         }
 
         terminateFuture.complete(null);

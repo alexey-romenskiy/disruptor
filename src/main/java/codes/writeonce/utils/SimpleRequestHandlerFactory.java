@@ -1,7 +1,6 @@
 package codes.writeonce.utils;
 
-import codes.writeonce.disruptor.Sender;
-import codes.writeonce.disruptor.Slots;
+import codes.writeonce.disruptor.WebSender;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.QueryStringDecoder;
@@ -19,12 +18,11 @@ public class SimpleRequestHandlerFactory<T> extends AbstractSwitchableRequestHan
     private final EventFactory<T> eventFactory;
 
     public SimpleRequestHandlerFactory(
-            @Nonnull Sender<T> sender,
-            @Nonnull Slots slots,
+            @Nonnull WebSender<T> sender,
             @Nonnull AtomicBoolean running,
             @Nonnull EventFactory<T> eventFactory
     ) {
-        super(sender, slots, running);
+        super(sender, running);
         this.eventFactory = eventFactory;
     }
 

@@ -2,15 +2,16 @@ package codes.writeonce.utils;
 
 import codes.writeonce.disruptor.Disruptor;
 import codes.writeonce.disruptor.DisruptorEntry;
+import codes.writeonce.disruptor.DisruptorWebSender;
 import codes.writeonce.disruptor.Event;
 import codes.writeonce.disruptor.EventHolder;
 import codes.writeonce.disruptor.MainWorker;
 import codes.writeonce.disruptor.QueueSender;
 import codes.writeonce.disruptor.Sender;
 import codes.writeonce.disruptor.ShutdownEvent;
-import codes.writeonce.disruptor.Slot;
 import codes.writeonce.disruptor.Slots;
 import codes.writeonce.disruptor.TimerEvent;
+import codes.writeonce.disruptor.WebSender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,10 +73,14 @@ public class Main {
 
         final var sender = new Sender<>(disruptor, processor7, ringBuffer2);
 
+        final var requestSlot = slots.slot(NettyRequestSlotKey.INSTANCE);
+        final var websocketSlot = slots.slot(NettyWebSocketSlotKey.INSTANCE);
+        final var webSender = new DisruptorWebSender<>(sender, requestSlot, websocketSlot);
+
         final var connector = new NettyConnector(
-                new WebsocketMessageFactoryImpl(sender, slots),
-                new SimpleMapping().get("/", new SimpleRequestHandlerFactory<>(sender, slots, new AtomicBoolean(true),
-                        rc -> new NettyEvent())),
+                new WebsocketMessageFactoryImpl(webSender),
+                new SimpleMapping().get("/",
+                        new SimpleRequestHandlerFactory<>(webSender, new AtomicBoolean(true), rc -> new NettyEvent())),
                 Path.of(System.getProperty("https.chain")),
                 Path.of(System.getProperty("https.key")),
                 System.getProperty("backend.bind.addr"),
@@ -122,35 +127,28 @@ public class Main {
     private static class WebsocketMessageFactoryImpl implements WebsocketMessageFactory {
 
         @Nonnull
-        private final Sender<Event> sender;
+        private final WebSender<Event> sender;
 
-        @Nonnull
-        private final Slot<WebSocketProtocolHandler> websocketSlot;
-
-        public WebsocketMessageFactoryImpl(@Nonnull Sender<Event> sender, @Nonnull Slots slots) {
+        public WebsocketMessageFactoryImpl(@Nonnull WebSender<Event> sender) {
             this.sender = sender;
-            this.websocketSlot = slots.slot(NettyWebSocketSlotKey.INSTANCE);
         }
 
         @Override
         public void websocketMessageEvent(@Nonnull WebSocketProtocolHandler webSocketProtocolHandler,
                 long websocketId, @Nonnull String text) {
-            sender.send(System.nanoTime(), new WebsocketMessageEvent(websocketId, text), websocketSlot,
-                    webSocketProtocolHandler);
+            sender.send(System.nanoTime(), new WebsocketMessageEvent(websocketId, text), webSocketProtocolHandler);
         }
 
         @Override
         public void websocketDisconnectedEvent(@Nonnull WebSocketProtocolHandler webSocketProtocolHandler,
                 long websocketId) {
-            sender.send(System.nanoTime(), new WebsocketDisconnectedEvent(websocketId), websocketSlot,
-                    webSocketProtocolHandler);
+            sender.send(System.nanoTime(), new WebsocketDisconnectedEvent(websocketId), webSocketProtocolHandler);
         }
 
         @Override
         public void websocketConnectedEvent(@Nonnull WebSocketProtocolHandler webSocketProtocolHandler,
                 long websocketId) {
-            sender.send(System.nanoTime(), new WebsocketConnectedEvent(websocketId), websocketSlot,
-                    webSocketProtocolHandler);
+            sender.send(System.nanoTime(), new WebsocketConnectedEvent(websocketId), webSocketProtocolHandler);
         }
     }
 }

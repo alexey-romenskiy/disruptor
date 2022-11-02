@@ -80,7 +80,8 @@ public class Main {
         final var connector = new NettyConnector(
                 new WebsocketMessageFactoryImpl(webSender),
                 new SimpleMapping().get("/",
-                        new SimpleRequestHandlerFactory<>(webSender, new AtomicBoolean(true), rc -> new NettyEvent())),
+                        new SimpleRequestHandlerFactory<>(webSender, new AtomicBoolean(true), ResponseFilter.EMPTY,
+                                rc -> new NettyEvent())),
                 Path.of(System.getProperty("https.chain")),
                 Path.of(System.getProperty("https.key")),
                 System.getProperty("backend.bind.addr"),

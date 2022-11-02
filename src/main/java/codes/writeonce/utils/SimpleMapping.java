@@ -47,4 +47,10 @@ public class SimpleMapping implements Mapping {
     ) {
         return uriToMethodToHandlerMap.get(queryStringDecoder.path());
     }
+
+    @Nonnull
+    @Override
+    public ResponseFilter getResponseFilter() {
+        return ResponseFilter.EMPTY;
+    }
 }

@@ -228,7 +228,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
             @Nonnull String statusText,
             @Nonnull String message
     ) {
-        ResponseUtils.sendError(context, request, status, statusText, message, true);
+        ResponseUtils.sendError(context, request, status, statusText, message, true, mapping.getResponseFilter());
         cleanup();
     }
 }

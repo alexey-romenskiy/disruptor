@@ -13,11 +13,16 @@ public abstract class AbstractSwitchableRequestHandlerFactory<T> implements Requ
     @Nonnull
     final AtomicBoolean running;
 
+    @Nonnull
+    protected final ResponseFilter responseFilter;
+
     public AbstractSwitchableRequestHandlerFactory(
             @Nonnull WebSender<T> sender,
-            @Nonnull AtomicBoolean running
+            @Nonnull AtomicBoolean running,
+            @Nonnull ResponseFilter responseFilter
     ) {
         this.sender = sender;
         this.running = running;
+        this.responseFilter = responseFilter;
     }
 }

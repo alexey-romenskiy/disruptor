@@ -18,6 +18,9 @@ public interface Mapping {
             @Nonnull Map<String, List<Cookie>> cookies
     ) throws NettyRequestException;
 
+    @Nonnull
+    ResponseFilter getResponseFilter();
+
     class Resource {
 
         @Nullable

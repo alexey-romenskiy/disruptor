@@ -15,9 +15,13 @@ public abstract class AbstractSwitchableRequestHandler<T> implements RequestHand
     @Nonnull
     private final AtomicBoolean running;
 
+    @Nonnull
+    protected final ResponseFilter responseFilter;
+
     public AbstractSwitchableRequestHandler(@Nonnull AbstractSwitchableRequestHandlerFactory<T> factory) {
         sender = factory.sender;
         running = factory.running;
+        responseFilter = factory.responseFilter;
     }
 
     protected void send(@Nonnull T event, @Nonnull NettyRequestContext requestContext) {
@@ -26,7 +30,7 @@ public abstract class AbstractSwitchableRequestHandler<T> implements RequestHand
             sender.send(System.nanoTime(), event, requestContext);
         } else {
             ResponseUtils.sendError(requestContext.getContext(), requestContext.getRequest(), SERVICE_UNAVAILABLE,
-                    "SERVICE_UNAVAILABLE", null, false);
+                    "SERVICE_UNAVAILABLE", null, false, responseFilter);
         }
     }
 }

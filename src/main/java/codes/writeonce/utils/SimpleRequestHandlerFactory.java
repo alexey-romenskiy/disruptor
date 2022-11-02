@@ -20,9 +20,10 @@ public class SimpleRequestHandlerFactory<T> extends AbstractSwitchableRequestHan
     public SimpleRequestHandlerFactory(
             @Nonnull WebSender<T> sender,
             @Nonnull AtomicBoolean running,
+            @Nonnull ResponseFilter responseFilter,
             @Nonnull EventFactory<T> eventFactory
     ) {
-        super(sender, running);
+        super(sender, running, responseFilter);
         this.eventFactory = eventFactory;
     }
 

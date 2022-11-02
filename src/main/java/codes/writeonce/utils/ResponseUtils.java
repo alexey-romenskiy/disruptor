@@ -65,7 +65,8 @@ public final class ResponseUtils {
             @Nonnull HttpResponseStatus statusCode,
             @Nonnull String statusText,
             @Nullable String message,
-            boolean forceClose
+            boolean forceClose,
+            @Nonnull ResponseFilter responseFilter
     ) {
         final var jsonObject = new JsonObject()
                 .put("success", false)
@@ -76,7 +77,7 @@ public final class ResponseUtils {
         }
 
         send(context, request, statusCode, "application/json; charset=UTF-8", copiedBuffer(jsonObject.encode(), UTF_8),
-                forceClose, null, null, null, Collections.emptyMap());
+                forceClose, null, null, null, Collections.emptyMap(), responseFilter);
     }
 
     public static void send(
@@ -89,7 +90,8 @@ public final class ResponseUtils {
             @Nullable Instant lastModified,
             @Nullable String eTag,
             @Nullable String contentEncoding,
-            @Nonnull Map<AsciiString, String> customHeaders
+            @Nonnull Map<AsciiString, String> customHeaders,
+            @Nonnull ResponseFilter responseFilter
     ) {
         final var response = new DefaultFullHttpResponse(HTTP_1_1, status, content);
         final var headers = response.headers();
@@ -109,12 +111,13 @@ public final class ResponseUtils {
             headers.set(CONTENT_ENCODING, contentEncoding);
         }
         HttpUtil.setContentLength(response, content.readableBytes());
-        send(context, request, forceClose, response);
+        send(context, request, forceClose, response, responseFilter);
     }
 
     public static void sendOptions(
             @Nonnull ChannelHandlerContext context,
-            @Nonnull HttpRequest request
+            @Nonnull HttpRequest request,
+            @Nonnull ResponseFilter responseFilter
     ) {
         final var response = new DefaultFullHttpResponse(HTTP_1_1, OK, EMPTY_BUFFER);
         final var headers = response.headers();
@@ -126,7 +129,7 @@ public final class ResponseUtils {
         headers.set(ACCESS_CONTROL_ALLOW_HEADERS, "Content-Type, X-Service-Api-Version");
         headers.set(ACCESS_CONTROL_MAX_AGE, String.valueOf(60 * 60 * 24));
         HttpUtil.setContentLength(response, 0);
-        send(context, request, false, response);
+        send(context, request, false, response, responseFilter);
     }
 
     public static void sendRedirect(
@@ -135,6 +138,7 @@ public final class ResponseUtils {
             boolean forceClose,
             @Nonnull HttpResponseStatus status,
             @Nonnull String uri,
+            @Nonnull ResponseFilter responseFilter,
             @Nonnull Cookie... cookies
     ) {
         final var response = new DefaultFullHttpResponse(HTTP_1_1, status, EMPTY_BUFFER);
@@ -147,14 +151,15 @@ public final class ResponseUtils {
         headers.set(PRAGMA, "no-cache");
         headers.set(EXPIRES, "Wed, 11 Jan 1984 05:00:00 GMT");
         HttpUtil.setContentLength(response, 0);
-        send(context, request, forceClose, response);
+        send(context, request, forceClose, response, responseFilter);
     }
 
     private static void send(
             @Nonnull ChannelHandlerContext context,
             @Nonnull HttpRequest request,
             boolean forceClose,
-            @Nonnull DefaultFullHttpResponse response
+            @Nonnull DefaultFullHttpResponse response,
+            @Nonnull ResponseFilter responseFilter
     ) {
         final var headers = response.headers();
 
@@ -168,6 +173,8 @@ public final class ResponseUtils {
         } else if (request.protocolVersion().equals(HTTP_1_0)) {
             headers.set(CONNECTION, KEEP_ALIVE);
         }
+
+        responseFilter.filter(request, response);
 
         final var future = context.writeAndFlush(response);
 

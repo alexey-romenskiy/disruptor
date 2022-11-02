@@ -81,7 +81,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
         if (msg instanceof final DecoderResultProvider drp) {
             final var result = drp.decoderResult();
             if (!result.isSuccess()) {
-                LOGGER.info("Decoder Failure", result.cause());
+                LOGGER.error("Decoder Failure", result.cause());
                 sendError(BAD_REQUEST, "MALFORMED_REQUEST", "Request decoder Failure");
                 return;
             }
@@ -115,7 +115,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
             try {
                 methods = mapping.handle(r, queryStringDecoder, cookies);
             } catch (NettyRequestException e) {
-                LOGGER.info("Failed to process request", e);
+                LOGGER.error("Failed to process request", e);
                 sendError(e.getHttpResponseStatus(), "MALFORMED_REQUEST", e.getMessage());
                 return;
             } catch (Exception e) {
@@ -147,7 +147,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
                 requestHandler = factory.handle(context, r, queryStringDecoder, cookies);
                 bodyHandler = requestHandler.getBodyHandler();
             } catch (NettyRequestException e) {
-                LOGGER.info("Failed to process request", e);
+                LOGGER.error("Failed to process request", e);
                 sendError(e.getHttpResponseStatus(), "MALFORMED_REQUEST", e.getMessage());
                 return;
             } catch (Exception e) {
@@ -186,7 +186,7 @@ public class CustomHttpServerHandler extends SimpleChannelInboundHandler<Object>
                     cleanup();
                 }
             } catch (NettyRequestException e) {
-                LOGGER.info("Failed to process request", e);
+                LOGGER.error("Failed to process request", e);
                 sendError(e.getHttpResponseStatus(), "MALFORMED_REQUEST", e.getMessage());
             } catch (Exception e) {
                 LOGGER.error("Failed to process request", e);

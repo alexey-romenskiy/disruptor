@@ -1,13 +1,13 @@
 package codes.writeonce.disruptor;
 
-import sun.misc.Unsafe;
+import jdk.internal.misc.Unsafe;
 
 import javax.annotation.Nonnull;
 import java.util.concurrent.atomic.AtomicReference;
 
 public final class MultiBarrier {
 
-    private static final Unsafe UNSAFE = Utils.getUnsafe();
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
     private static final long BASE = UNSAFE.arrayBaseOffset(int[].class);
     private static final long SCALE = UNSAFE.arrayIndexScale(int[].class);
 

@@ -1,6 +1,6 @@
 package codes.writeonce.disruptor;
 
-import sun.misc.Unsafe;
+import jdk.internal.misc.Unsafe;
 
 class SequenceLeftPadding {
 
@@ -19,7 +19,7 @@ class SequenceFields extends SequenceLeftPadding {
 
 public final class Sequence extends SequenceFields {
 
-    private static final Unsafe UNSAFE = Utils.getUnsafe();
+    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
 
     private static final long VALUE;
 
@@ -47,6 +47,6 @@ public final class Sequence extends SequenceFields {
     }
 
     public boolean compareAndSet(long expectedValue, long newValue) {
-        return UNSAFE.compareAndSwapLong(this, VALUE, expectedValue, newValue);
+        return UNSAFE.compareAndSetLong(this, VALUE, expectedValue, newValue);
     }
 }

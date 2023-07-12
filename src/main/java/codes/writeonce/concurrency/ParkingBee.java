@@ -3,13 +3,13 @@ package codes.writeonce.concurrency;
 import javax.annotation.Nonnull;
 import java.util.concurrent.locks.LockSupport;
 
-public class ParkingWaitable extends Waitable {
+public class ParkingBee extends Bee {
 
     @Nonnull
     private final Thread thread;
 
-    public ParkingWaitable(@Nonnull WaitableHost host, @Nonnull Thread thread) {
-        super(host);
+    public ParkingBee(@Nonnull Bloom bloom, @Nonnull Thread thread) {
+        super(bloom);
         this.thread = thread;
     }
 

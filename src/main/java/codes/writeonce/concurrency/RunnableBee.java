@@ -2,13 +2,13 @@ package codes.writeonce.concurrency;
 
 import javax.annotation.Nonnull;
 
-public class RunnableWaitable extends Waitable {
+public class RunnableBee extends Bee {
 
     @Nonnull
     private final Runnable runnable;
 
-    public RunnableWaitable(@Nonnull WaitableHost host, @Nonnull Runnable runnable) {
-        super(host);
+    public RunnableBee(@Nonnull Bloom bloom, @Nonnull Runnable runnable) {
+        super(bloom);
         this.runnable = runnable;
     }
 

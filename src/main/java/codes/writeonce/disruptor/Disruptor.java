@@ -1,6 +1,6 @@
 package codes.writeonce.disruptor;
 
-import codes.writeonce.concurrency.WaitableHost;
+import codes.writeonce.concurrency.Bloom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +19,7 @@ public class Disruptor implements AutoCloseable {
 
     private final ArrayList<AtomicReference<WaitClient>> waitLists = new ArrayList<>();
 
-    private final ArrayList<WaitableHost> waitableHosts = new ArrayList<>();
+    private final ArrayList<Bloom> blooms = new ArrayList<>();
 
     @Nonnull
     private final ArrayList<WorkerInfo> workers = new ArrayList<>();
@@ -54,11 +54,11 @@ public class Disruptor implements AutoCloseable {
         waitLists.add(waitListHead);
     }
 
-    public void addWaitableHost(@Nonnull WaitableHost waitableHost) {
+    public void addBloom(@Nonnull Bloom bloom) {
         if (starting.get()) {
             throw new IllegalStateException();
         }
-        waitableHosts.add(waitableHost);
+        blooms.add(bloom);
     }
 
     @Nonnull
@@ -174,8 +174,8 @@ public class Disruptor implements AutoCloseable {
             WaitClient.wakeupAll(waitList);
         }
 
-        for (final var waitableHost : waitableHosts) {
-            waitableHost.wakeup();
+        for (final var bloom : blooms) {
+            bloom.ready();
         }
 
         terminateFuture.complete(null);

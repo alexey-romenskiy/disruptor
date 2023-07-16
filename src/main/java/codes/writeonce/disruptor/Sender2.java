@@ -4,7 +4,7 @@ import javax.annotation.Nonnull;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
-public class Sender2<T> {
+public class Sender2<T> implements EventSender<T> {
 
     @Nonnull
     private final Disruptor disruptor;
@@ -43,6 +43,7 @@ public class Sender2<T> {
         }
     }
 
+    @Override
     public void send(long incomingNanos, @Nonnull T event) {
 
         while (true) {

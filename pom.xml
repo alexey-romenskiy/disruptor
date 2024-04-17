@@ -251,14 +251,14 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>3.8.1</version>
                     <configuration>
-                        <target>20</target>
-                        <source>20</source>
+                        <target>22</target>
+                        <source>22</source>
                         <encoding>UTF-8</encoding>
                         <compilerArgs>
                             <arg>--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED</arg>
                             <arg>-Xlint:deprecation,unchecked,preview</arg>
                             <arg>-parameters</arg>
-                            <arg>--enable-preview</arg>
+                            <!--<arg>&#45;&#45;enable-preview</arg>-->
                         </compilerArgs>
                     </configuration>
                 </plugin>

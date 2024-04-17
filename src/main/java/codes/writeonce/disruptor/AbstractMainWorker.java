@@ -41,7 +41,7 @@ public abstract class AbstractMainWorker<T> implements Worker {
     private final Supplier<T> timerEventFactory;
 
     @Nonnull
-    private final ConcurrentLinkedQueue<T> queuedEvents;
+    private final ConcurrentLinkedQueue<QueueSender.Wrapper<T>> queuedEvents;
 
     @Nullable
     private volatile Instant fireTime;
@@ -63,7 +63,7 @@ public abstract class AbstractMainWorker<T> implements Worker {
             @Nonnull RingBuffer<DisruptorEntry<T>> queue1,
             @Nonnull RingBuffer<EventHolder<T>> queue2,
             @Nonnull Supplier<T> timerEventFactory,
-            @Nonnull ConcurrentLinkedQueue<T> queuedEvents
+            @Nonnull ConcurrentLinkedQueue<QueueSender.Wrapper<T>> queuedEvents
     ) {
         this.disruptor = disruptor;
         this.thread = thread.getThread();
@@ -153,7 +153,11 @@ public abstract class AbstractMainWorker<T> implements Worker {
                     final var entry = queue1.get(publishSequence1++);
                     entry.timestamp = now;
                     entry.incomingNanos = incomingNanos;
-                    entry.event = event;
+                    final var counter = event.counter();
+                    if (counter != null) {
+                        counter.decrementAndGet();
+                    }
+                    entry.event = event.event();
                     postprocess(entry);
 
                     while (available1 != 0) {
@@ -165,7 +169,11 @@ public abstract class AbstractMainWorker<T> implements Worker {
                         final var entry2 = queue1.get(publishSequence1++);
                         entry2.timestamp = now;
                         entry2.incomingNanos = incomingNanos;
-                        entry2.event = event2;
+                        final var counter2 = event2.counter();
+                        if (counter2 != null) {
+                            counter2.decrementAndGet();
+                        }
+                        entry2.event = event2.event();
                         postprocess(entry2);
                     }
                 }

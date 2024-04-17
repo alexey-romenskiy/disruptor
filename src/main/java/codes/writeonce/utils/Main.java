@@ -68,7 +68,7 @@ public class Main {
         final var processor7 = ringBuffer2.newMultiProcessor(barrier7, barrier8);
         final var processor8 = ringBuffer2.newPostMultiProcessor(thread1, barrier8, barrier7);
 
-        final var queuedEvents = new ConcurrentLinkedQueue<Event>();
+        final var queuedEvents = new ConcurrentLinkedQueue<QueueSender.Wrapper<Event>>();
         final var queueSender = new QueueSender<>(queuedEvents, thread1);
 
         final var sender = new Sender<>(disruptor, processor7, ringBuffer2);

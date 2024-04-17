@@ -16,7 +16,7 @@ public class MainWorker<T> extends AbstractMainWorker<T> {
             @Nonnull RingBuffer<DisruptorEntry<T>> queue1,
             @Nonnull RingBuffer<EventHolder<T>> queue2,
             @Nonnull Supplier<T> timerEventFactory,
-            @Nonnull ConcurrentLinkedQueue<T> queuedEvents
+            @Nonnull ConcurrentLinkedQueue<QueueSender.Wrapper<T>> queuedEvents
     ) {
         super(disruptor, thread, slots, innerProcessor, externalProcessor, queue1, queue2, timerEventFactory,
                 queuedEvents);

@@ -34,7 +34,7 @@ public abstract class AbstractMainWorker2<T, E, X extends DisruptorEntry2<T>> im
     private final PostMultiProcessor externalProcessor;
 
     @Nonnull
-    private final ConcurrentLinkedQueue<E> queuedEvents;
+    private final ConcurrentLinkedQueue<QueueSender.Wrapper<E>> queuedEvents;
 
     @Nullable
     private volatile Instant fireTime;
@@ -54,7 +54,7 @@ public abstract class AbstractMainWorker2<T, E, X extends DisruptorEntry2<T>> im
             @Nonnull PostMultiProcessor externalProcessor,
             @Nonnull RingBuffer<X> queue1,
             @Nonnull RingBuffer<EventHolder2<E>> queue2,
-            @Nonnull ConcurrentLinkedQueue<E> queuedEvents
+            @Nonnull ConcurrentLinkedQueue<QueueSender.Wrapper<E>> queuedEvents
     ) {
         this.disruptor = disruptor;
         this.thread = thread.getThread();
@@ -142,7 +142,11 @@ public abstract class AbstractMainWorker2<T, E, X extends DisruptorEntry2<T>> im
                     final var entry = queue1.get(publishSequence1++);
                     entry.timestamp = now;
                     entry.incomingNanos = incomingNanos;
-                    entry.event = convert(event, entry);
+                    final var counter = event.counter();
+                    if (counter != null) {
+                        counter.decrementAndGet();
+                    }
+                    entry.event = convert(event.event(), entry);
 
                     while (available1 != 0) {
                         final var event2 = queuedEvents.poll();
@@ -153,7 +157,11 @@ public abstract class AbstractMainWorker2<T, E, X extends DisruptorEntry2<T>> im
                         final var entry2 = queue1.get(publishSequence1++);
                         entry2.timestamp = now;
                         entry2.incomingNanos = incomingNanos;
-                        entry2.event = convert(event2, entry2);
+                        final var counter2 = event2.counter();
+                        if (counter2 != null) {
+                            counter2.decrementAndGet();
+                        }
+                        entry2.event = convert(event2.event(), entry2);
                     }
                 }
 
